@@ -143,8 +143,9 @@ class GreedyScheduler:
         for identifier in team:
             technician = self._tech_by_id[identifier]
             for domain, level in enumerate(technician.skills):
-                for threshold in range(level + 1):
-                    coverage[domain][threshold] += 1
+                effective_level = min(max(level, 0), self.instance.levels)
+                for threshold in range(1, effective_level + 1):
+                    coverage[domain][threshold - 1] += 1
         return coverage
 
     def _team_satisfies(
