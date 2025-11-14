@@ -65,10 +65,20 @@ class DayInfo:
     coverage: List[List[int]]  # domain -> level -> count
     assignments: List[Assignment] = field(default_factory=list)
     end_time: int = 0
+    teams: Dict[int, List[int]] = field(default_factory=dict)
 
     def schedule(self, assignment: Assignment) -> None:
         self.assignments.append(assignment)
         self.end_time = assignment.end_time
+
+    def register_team(self, members: List[int]) -> int:
+        normalized = sorted(members)
+        for identifier, existing in self.teams.items():
+            if existing == normalized:
+                return identifier
+        team_id = len(self.teams) + 1
+        self.teams[team_id] = normalized
+        return team_id
 
 
 Schedule = Dict[int, Assignment]

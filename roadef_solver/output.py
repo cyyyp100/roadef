@@ -14,11 +14,16 @@ def _format_list(values: Iterable[int]) -> str:
 
 
 def write_teams(path: pathlib.Path, days: Dict[int, DayInfo]) -> None:
-    lines: List[str] = ["day not_working team1"]
+    max_teams = max((len(info.teams) for info in days.values()), default=0)
+    header = ["day", "not_working"] + [f"team{i}" for i in range(1, max_teams + 1)]
+    lines: List[str] = [" ".join(header)]
     for day in sorted(days):
         info = days[day]
-        line = f"{day} {_format_list(info.not_working)} {_format_list(info.team_members)}"
-        lines.append(line)
+        values = [str(day), _format_list(info.not_working)]
+        for team_id in range(1, max_teams + 1):
+            members = info.teams.get(team_id, [])
+            values.append(_format_list(members))
+        lines.append(" ".join(values))
     path.write_text("\n".join(lines) + "\n")
 
 

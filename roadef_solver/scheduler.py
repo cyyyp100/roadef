@@ -99,6 +99,11 @@ class GreedyScheduler:
             if not self._team_satisfies(info.coverage, intervention.requirements):
                 day += 1
                 continue
+            team_members = self._select_team(info, intervention.requirements)
+            if team_members is None:
+                day += 1
+                continue
+            team_id = info.register_team(team_members)
             start_time = info.end_time
             if day == ready_day:
                 start_time = max(start_time, ready_time)
@@ -108,7 +113,7 @@ class GreedyScheduler:
                     day=day,
                     start=start_time,
                     duration=duration,
-                    team=1,
+                    team=team_id,
                 )
                 info.schedule(assignment)
                 return assignment
@@ -154,10 +159,71 @@ class GreedyScheduler:
         requirements: Iterable[Iterable[int]],
     ) -> bool:
         for domain, domain_requirements in enumerate(requirements):
+            if domain >= len(coverage):
+                if any(required > 0 for required in domain_requirements):
+                    return False
+                continue
             for level, required in enumerate(domain_requirements):
+                if level >= len(coverage[domain]):
+                    if required > 0:
+                        return False
+                    continue
                 if coverage[domain][level] < required:
                     return False
         return True
+
+    def _select_team(
+        self,
+        info: DayInfo,
+        requirements: Iterable[Iterable[int]],
+    ) -> Optional[List[int]]:
+        matrix = [list(domain) for domain in requirements]
+        if not matrix:
+            return []
+        if all(all(required == 0 for required in domain) for domain in matrix):
+            return []
+        coverage = [
+            [0 for _ in range(self.instance.levels)]
+            for _ in range(self.instance.domains)
+        ]
+        selected: List[int] = []
+
+        def meets_requirements() -> bool:
+            for domain, domain_requirements in enumerate(matrix):
+                for level, required in enumerate(domain_requirements):
+                    if level >= len(coverage[domain]):
+                        if required > 0:
+                            return False
+                        continue
+                    if coverage[domain][level] < required:
+                        return False
+            return True
+
+        for identifier in info.team_members:
+            technician = self._tech_by_id[identifier]
+            contributes = False
+            for domain, level in enumerate(technician.skills):
+                effective_level = min(max(level, 0), self.instance.levels)
+                for threshold in range(1, effective_level + 1):
+                    index = threshold - 1
+                    if index >= len(coverage[domain]):
+                        continue
+                    if domain >= len(matrix) or index >= len(matrix[domain]):
+                        continue
+                    if coverage[domain][index] < matrix[domain][index]:
+                        coverage[domain][index] += 1
+                        contributes = True
+            if contributes:
+                selected.append(identifier)
+                if meets_requirements():
+                    break
+
+        if meets_requirements():
+            return selected
+
+        if info.team_members:
+            return list(info.team_members)
+        return None
 
 
 __all__ = ["GreedyScheduler"]
