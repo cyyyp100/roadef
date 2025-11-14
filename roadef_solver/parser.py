@@ -40,9 +40,20 @@ def _extract_list_segment(line: str) -> (str, str, str):
 
 
 def parse_instance(path: pathlib.Path) -> InstanceData:
-    tokens = path.read_text().split()
+    lines = [line.strip() for line in path.read_text().splitlines() if line.strip()]
+    if not lines:
+        raise ValueError("Instance file is empty")
+
+    data_line = lines[0]
+    if data_line.lower().startswith("name"):
+        if len(lines) < 2:
+            raise ValueError("Instance file must contain a data row after the header")
+        data_line = lines[1]
+
+    tokens = data_line.split()
     if len(tokens) < 6:
-        raise ValueError("Instance file must contain six tokens")
+        raise ValueError("Instance line must contain six tokens")
+
     name = tokens[0]
     domains, levels, techs, interventions, abandon_cost = map(int, tokens[1:6])
     return InstanceData(
@@ -59,7 +70,7 @@ def parse_interventions(path: pathlib.Path, instance: InstanceData) -> Dict[int,
     interventions: Dict[int, Intervention] = {}
     for raw_line in path.read_text().splitlines():
         line = raw_line.strip()
-        if not line or line.startswith("#"):
+        if not line or line.startswith("#") or not line[0].isdigit():
             continue
         prefix, segment, suffix = _extract_list_segment(line)
         prefix_tokens = prefix.split()
@@ -97,7 +108,7 @@ def parse_technicians(path: pathlib.Path, instance: InstanceData) -> Dict[int, T
     technicians: Dict[int, Technician] = {}
     for raw_line in path.read_text().splitlines():
         line = raw_line.strip()
-        if not line or line.startswith("#"):
+        if not line or line.startswith("#") or not line[0].isdigit():
             continue
         prefix, segment, _ = _extract_list_segment(line)
         tokens = prefix.split()
